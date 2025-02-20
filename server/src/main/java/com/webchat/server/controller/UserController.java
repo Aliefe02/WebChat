@@ -9,7 +9,6 @@ import com.webchat.server.security.SecurityUtils;
 import com.webchat.server.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -31,7 +30,7 @@ public class UserController {
         return userService.getUserEntityById(SecurityUtils.getAuthenticatedUserId()).orElseThrow(UnauthorizedException::new);
     }
 
-    public UserDTO getUserDTOFromToken(UserService userService){
+    public static UserDTO getUserDTOFromToken(UserService userService){
         return userService.getUserById(SecurityUtils.getAuthenticatedUserId()).orElseThrow(NotFoundException::new);
     }
 
@@ -46,12 +45,12 @@ public class UserController {
     }
 
     @PostMapping("register")
-    public ResponseEntity<UserDTO> register(@Validated @RequestBody UserDTO userDTO){
+    public ResponseEntity<String> register(@Validated @RequestBody UserDTO userDTO){
         UserDTO savedUser = userService.register(userDTO);
-        HttpHeaders headers = new HttpHeaders();
 
-        headers.add("Location", "/user/"+savedUser.getId().toString());
-        return new ResponseEntity<>(headers, HttpStatus.CREATED);
+        String token = jwtUtil.generateToken(savedUser.getId());
+
+        return new ResponseEntity<>(token, HttpStatus.CREATED);
     }
 
     @PutMapping("update-password")
