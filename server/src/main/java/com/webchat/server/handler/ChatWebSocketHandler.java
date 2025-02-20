@@ -1,5 +1,7 @@
 package com.webchat.server.handler;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -17,7 +19,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        String username = (String) session.getAttributes().get("username"); // Assuming username is stored
+        String username = (String) session.getAttributes().get("username");
         sessions.put(username, session);
         System.out.println(username + " connected");
     }
@@ -25,16 +27,20 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws IOException {
         String username = (String) session.getAttributes().get("username");
-        System.out.println("Received from: " + username + " - " + message.getPayload());
 
-        // ✅ Send message back to sender (Echo)
-        session.sendMessage(new TextMessage("Echo: " + message.getPayload()));
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode jsonNode = objectMapper.readTree(message.getPayload());
 
-        // ✅ Broadcast to all other users (Optional)
-        for (WebSocketSession s : sessions.values()) {
-            if (s.isOpen() && !s.equals(session)) {
-                s.sendMessage(new TextMessage(username + ": " + message.getPayload()));
-            }
+        String recipient = jsonNode.get("recipient").asText();
+        String text = jsonNode.get("message").asText();
+
+        System.out.println("Received from: " + username + " to  "+ recipient + " message: " + message.getPayload());
+
+        WebSocketSession recipientSession = sessions.get(recipient);
+        if (recipientSession != null && recipientSession.isOpen()){
+            recipientSession.sendMessage(new TextMessage(text));
+        } else {
+            System.out.println("User "+ recipient + " not connected");
         }
     }
 
